@@ -1519,10 +1519,11 @@ if (-not $onlineToolsAvailable) {
     Write-Host "[ -- ]   PrivescCheck skipped (no connection possible)" -ForegroundColor DarkGray
 } else {
     try {
-        $cmd = "IEX (New-Object Net.WebClient).DownloadString('https://github.com/itm4n/PrivescCheck/releases/latest/download/PrivescCheck.ps1'); Invoke-PrivescCheck -Extended -Audit -Report '$OUT\PrivescCheck' -Format HTML"
-        Start-Process powershell -ArgumentList "-NoProfile -Command `"$cmd`"" -WindowStyle Hidden -Wait
-        Write-Host "[ OK ]   PrivescCheck -> PrivescCheck.html" -ForegroundColor Green
-    } catch {
+    Invoke-Expression -Command ( Invoke-RestMethod 'https://github.com/itm4n/PrivescCheck/releases/latest/download/PrivescCheck.ps1')
+    Invoke-PrivescCheck -Extended -Audit -Report "$OUT\PrivescCheck" -Format HTML
+    Write-Host "[ OK ]   PrivescCheck -> PrivescCheck.html" -ForegroundColor Green
+    }
+    catch {
         Write-Host "[ -- ]   PrivescCheck failed: $_" -ForegroundColor DarkYellow
     }
 }
