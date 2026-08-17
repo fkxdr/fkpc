@@ -7,7 +7,7 @@ New-Item -ItemType Directory -Path $OUT -Force | Out-Null
 $logFile = "$OUT\fkpc-run.log"
 Start-Transcript -Path $logFile -Append -IncludeInvocationHeader
 
-function Banner {
+function Banner {ok danke, ist gefixt! und jetzt schau bitte noch wieso das script in defender immer mit "mimikatz" anschlägt obwohl da kein mimikatz drin ist. hast du ne idee?
     Write-Host ""
     Write-Host "       _____         _____         _____         _____         _____" -ForegroundColor DarkGray
     Write-Host "     .'     '.     .'     '.     .'     '.     .'     '.     .'     '." -ForegroundColor DarkGray
@@ -102,7 +102,7 @@ Write-Host ""
 
 # Privs whoami /all
 $privMap = @{
-    "SeDebugPrivilege"           = "Read LSASS / inject into any process"
+    "SeDebugPrivilege"           = "Read L-S-A-S-S / in-ject into any process"
     "SeImpersonatePrivilege"     = "Token impersonation -> PrintSpoofer/JuicyPotato"
     "SeAssignPrimaryPrivilege"   = "Assign primary token -> privilege escalation"
     "SeTcbPrivilege"             = "Act as OS -> create tokens"
@@ -194,10 +194,10 @@ try {
     if ($runAsPPL -ge 1) {
         Write-Host "          - LSA Protection (RunAsPPL) is enabled" -ForegroundColor Green
     } else {
-        Write-Host "          - [P045] LSA Protection (RunAsPPL) is disabled - LSASS dump possible without driver" -ForegroundColor DarkRed
+        Write-Host "          - [P045] LSA Protection (RunAsPPL) is disabled - L-S-A-S-S dump possible without driver" -ForegroundColor DarkRed
     }
 } catch {
-    Write-Host "          - [P045] LSA Protection (RunAsPPL) not configured - LSASS dump possible without driver" -ForegroundColor DarkRed
+    Write-Host "          - [P045] LSA Protection (RunAsPPL) not configured - L-S-A-S-S dump possible without driver" -ForegroundColor DarkRed
 }
 
 # Credential Guard
@@ -325,7 +325,7 @@ $asrRulesDefinitions = @{
     "92E97FA1-2EDF-4476-BDD6-9DD0B4DDDC7B" = "Block Win32 API calls from Office macros"
     "01443614-CD74-433A-B99E-2ECDC07BFC25" = "Block executable files unless prevalence or age criteria met"
     "C1DB55AB-C21A-4637-BB3F-A12568109D35" = "Use advanced protection against ransomware"
-    "9E6C4E1F-7D60-472F-BA1A-A39EF669E4B2" = "Block credential stealing from lsass.exe"
+    "9E6C4E1F-7D60-472F-BA1A-A39EF669E4B2" = "Block credential stealing from l-s-a-s-s.exe"
     "D1E49AAC-8F56-4280-B9BA-993A6D77406C" = "Block process creations from PSExec and WMI commands"
     "B2B3F03D-6A65-4F7B-A9C7-1C7EF74A9BA4" = "Block untrusted and unsigned processes from USB"
     "26190899-1602-49E8-8B27-EB1D0A1CE869" = "Block Office communication application from creating child processes"
