@@ -1,5 +1,6 @@
 $DATE = Get-Date -Format "yyyyMMdd_HHmm"
 $USER = $env:USERNAME
+$env:TEMP = "$env:USERPROFILE\AppData\Local\Temp"
 $OUT = "$env:USERPROFILE\Downloads\fkpc-$DATE-$USER"
 New-Item -ItemType Directory -Path $OUT -Force | Out-Null
 
@@ -7,7 +8,7 @@ New-Item -ItemType Directory -Path $OUT -Force | Out-Null
 $logFile = "$OUT\fkpc-run.log"
 Start-Transcript -Path $logFile -Append -IncludeInvocationHeader
 
-function Banner {ok danke, ist gefixt! und jetzt schau bitte noch wieso das script in defender immer mit "mimikatz" anschlägt obwohl da kein mimikatz drin ist. hast du ne idee?
+function Banner {
     Write-Host ""
     Write-Host "       _____         _____         _____         _____         _____" -ForegroundColor DarkGray
     Write-Host "     .'     '.     .'     '.     .'     '.     .'     '.     .'     '." -ForegroundColor DarkGray
@@ -63,13 +64,6 @@ try {
     }
 } catch {
     Write-Host "[ -- ]   GitHub not reachable - online tools will be skipped" -ForegroundColor DarkGray
-}
-
-$isDomainJoined = (Get-WmiObject Win32_ComputerSystem).PartOfDomain
-if ($isDomainJoined) {
-    Write-Host "[ OK ]   Domain-joined: $env:USERDNSDOMAIN" -ForegroundColor Green
-} else {
-    Write-Host "[ -- ]   Not domain-joined - AD-dependent checks will be skipped" -ForegroundColor DarkGray
 }
 
 $isAdmin = IsAdmin
@@ -425,21 +419,25 @@ try {
     Write-Host "[P095]   AppLocker Service (AppIDSvc) was not found" -ForegroundColor DarkRed
 }
 
-$applockerRegPath = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\SrpV2"
-$applockerConfigured = $false
-$applockerCollections = @("Exe", "Msi", "Script", "Dll", "Appx")
-foreach ($collection in $applockerCollections) {
-    $collPath = "$applockerRegPath\$collection"
-    if (Test-Path $collPath) {
-        $rules = Get-ChildItem -Path $collPath -ErrorAction SilentlyContinue
+try {
+    [xml]$applockerPolicy = Get-AppLockerPolicy -Effective -Xml -ErrorAction Stop
+    $applockerConfigured = $false
+    foreach ($collection in $applockerPolicy.AppLockerPolicy.RuleCollection) {
+        $rules = @($collection.ChildNodes | Where-Object { $_.Name -match 'Rule$' })
         if ($rules.Count -gt 0) {
-            $applockerConfigured = $true
-            Write-Host "          - AppLocker $collection Rules: $($rules.Count) rule(s) configured" -ForegroundColor DarkGreen
+            if ($collection.EnforcementMode -eq "AuditOnly") {
+                Write-Host "          - AppLocker $($collection.Type) Rules: $($rules.Count) rule(s), audit only" -ForegroundColor DarkYellow
+            } else {
+                $applockerConfigured = $true
+                Write-Host "          - AppLocker $($collection.Type) Rules: $($rules.Count) rule(s) enforced" -ForegroundColor DarkGreen
+            }
         }
     }
-}
-if (-not $applockerConfigured) {
-    Write-Host "          - [P096] AppLocker: No baselines or rules configured, all executables are allowed" -ForegroundColor DarkRed
+    if (-not $applockerConfigured) {
+        Write-Host "          - [P096] AppLocker: No enforced rules configured, all executables are allowed" -ForegroundColor DarkRed
+    }
+} catch {
+    Write-Host "          - [P096] AppLocker: No enforced rules configured, all executables are allowed" -ForegroundColor DarkRed
 }
 
 # Edge SmartScreen
@@ -506,10 +504,7 @@ try {
 }
 
 # GPO ACL Check
-if (-not $isDomainJoined) {
-    Write-Host "[ -- ]   GPO ACL check skipped (not domain-joined)" -ForegroundColor DarkGray
-} else {
-    try {
+try {
         $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetCurrentDomain()
         $DN = "DC=" + ($domain.Name -replace "\.", ",DC=")
         $entry = New-Object System.DirectoryServices.DirectoryEntry("LDAP://CN=Policies,CN=System,$DN")
@@ -569,9 +564,8 @@ if (-not $isDomainJoined) {
         } else {
             Write-Host "          - No non-default GPO delegations found" -ForegroundColor DarkGray
         }
-    } catch {
-        Write-Host "[ -- ]   GPO ACL check failed: $_" -ForegroundColor DarkYellow
-    }
+} catch {
+    Write-Host "[ -- ]   GPO ACL check failed: $_" -ForegroundColor DarkYellow
 }
 
 # SYSVOL File ACL Check
@@ -1421,10 +1415,7 @@ if ($sqlTargets.Count -eq 0) {
 Write-Host ""
 
 # PingCastle
-if (-not $isDomainJoined) {
-    Write-Host "[ -- ]   Pingcastle skipped (not domain-joined)" -ForegroundColor DarkGray
-} else {
-    if (-not $onlineToolsAvailable) {
+if (-not $onlineToolsAvailable) {
         Write-Host "[ -- ]   PingCastle skipped (no connection possible)" -ForegroundColor DarkGray
     } else {
         try {
@@ -1447,15 +1438,11 @@ if (-not $isDomainJoined) {
             }
         } catch {
             Write-Host "[ -- ]   PingCastle failed: $_" -ForegroundColor DarkYellow
-        }
     }
 }
 
 # ADeleginator
-if (-not $isDomainJoined) {
-    Write-Host "[ -- ]   ADeleginator skipped (not domain-joined)" -ForegroundColor DarkGray
-} else {
-    if (-not $onlineToolsAvailable) {
+if (-not $onlineToolsAvailable) {
         Write-Host "[ -- ]   ADeleginator skipped (no connection possible)" -ForegroundColor DarkGray
     } else {
         try {
@@ -1468,15 +1455,11 @@ if (-not $isDomainJoined) {
             Write-Host "[ OK ]   ADeleginator -> adeleginator.txt" -ForegroundColor Green
         } catch {
             Write-Host "[ -- ]   ADeleginator failed: $_" -ForegroundColor DarkYellow
-        }
     }
 }    
 
 # ScriptSentry
-if (-not $isDomainJoined) {
-    Write-Host "[ -- ]   ScriptSentry skipped (not domain-joined)" -ForegroundColor DarkGray
-} else {
-    if (-not $onlineToolsAvailable) {
+if (-not $onlineToolsAvailable) {
         Write-Host "[ -- ]   ScriptSentry skipped (no connection possible)" -ForegroundColor DarkGray
     } else {
         try {
@@ -1487,7 +1470,6 @@ if (-not $isDomainJoined) {
             Write-Host "[ OK ]   ScriptSentry -> scriptsentry.txt" -ForegroundColor Green
         } catch {
             Write-Host "[ -- ]   ScriptSentry failed: $_" -ForegroundColor DarkYellow
-        }
     }
 }
 
